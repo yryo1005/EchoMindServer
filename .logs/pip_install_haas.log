@@ -1,0 +1,13 @@
+Using Python 3.11.16 environment at: .venv_ml
+Resolved 205 packages in 3.91s
+   Building haas-asr @ file:///home/user/workspace/EchoMindServer/third_party/Haas-ASR
+Downloading nemo-toolkit (5.7MiB)
+      Built haas-asr @ file:///home/user/workspace/EchoMindServer/third_party/Haas-ASR
+ Downloaded nemo-toolkit
+Prepared 2 packages in 895ms
+Uninstalled 1 package in 761ms
+Installed 2 packages in 295ms
+ + haas-asr==0.1.0 (from file:///home/user/workspace/EchoMindServer/third_party/Haas-ASR)
+ - nemo-toolkit==2.7.0
+ + nemo-toolkit==2.7.3
+EXIT:0

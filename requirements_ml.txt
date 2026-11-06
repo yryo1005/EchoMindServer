@@ -1,0 +1,59 @@
+# EchoMindServer 共有MLツールチェーン
+# ベンチマーク(programs/ex001_model_benchmark/)とサーバー(programs/server/)で共通して使用する
+# torch/torchaudioのみ動作確認済みバージョンに固定し，他はnemo_toolkit等の依存に委ねて解決する
+
+# --- Deep Learning基盤 ---
+torch==2.6.0
+torchaudio==2.6.0
+
+# --- 話者分離 ---
+pyannote.audio>=3.3.2
+pyannote.metrics>=3.2.1
+
+# --- 音声認識 (Haas-ja) ---
+nemo_toolkit[asr]==2.7.0
+flash-linear-attention>=0.1.2
+haas-asr @ git+https://github.com/third-intelligence/Haas-ASR.git
+
+# --- 音声認識 比較対象 ---
+transformers
+accelerate
+
+# --- VAD ---
+silero-vad>=5.1.2
+webrtcvad>=2.0.10
+
+# --- 文章埋め込み・ベクトル検索 ---
+# sentence-transformers>=4.0ではcl-nagoya/ruri系の古い形式のtokenizer設定が
+# AutoProcessor経由のロードに非対応となるため，3.x系に固定する
+sentence-transformers==3.3.1
+fugashi
+unidic-lite
+
+# --- 評価指標 ---
+jiwer
+scikit-learn
+
+# --- データ・音声処理 ---
+soundfile
+librosa
+pydub
+datasets
+huggingface_hub
+
+# --- サーバー ---
+fastapi
+uvicorn[standard]
+python-multipart
+sqlalchemy
+psycopg2-binary
+pgvector
+google-genai
+
+# --- 共通 ---
+tqdm
+numpy
+pytest
+ipykernel
+jupyter
+nbconvert

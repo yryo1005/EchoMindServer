@@ -1,0 +1,173 @@
+pyannote_community_1:   0%|          | 0/80 [00:00<?, ?it/s]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/audio/utils/reproducibility.py:74: ReproducibilityWarning: TensorFloat-32 (TF32) has been disabled as it might lead to reproducibility issues and lower accuracy.
+It can be re-enabled by calling
+   >>> import torch
+   >>> torch.backends.cuda.matmul.allow_tf32 = True
+   >>> torch.backends.cudnn.allow_tf32 = True
+See https://github.com/pyannote/pyannote-audio/issues/1370 for more details.
+
+  warnings.warn(
+/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/audio/models/blocks/pooling.py:103: UserWarning: std(): degrees of freedom is <= 0. Correction should be strictly less than the reduction factor (input numel divided by output numel). (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/ReduceOps.cpp:1927.)
+  std = sequences.std(dim=-1, correction=1)
+/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   1%|▏         | 1/80 [00:03<04:31,  3.44s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   2%|▎         | 2/80 [00:05<03:10,  2.45s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   4%|▍         | 3/80 [00:06<02:38,  2.05s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   5%|▌         | 4/80 [00:08<02:35,  2.05s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   6%|▋         | 5/80 [00:10<02:10,  1.74s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   8%|▊         | 6/80 [00:11<01:57,  1.59s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:   9%|▉         | 7/80 [00:12<01:47,  1.47s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  10%|█         | 8/80 [00:14<02:02,  1.70s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  11%|█▏        | 9/80 [00:16<01:56,  1.63s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  12%|█▎        | 10/80 [00:17<01:53,  1.62s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  14%|█▍        | 11/80 [00:18<01:39,  1.44s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  15%|█▌        | 12/80 [00:19<01:28,  1.31s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  16%|█▋        | 13/80 [00:20<01:23,  1.25s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  18%|█▊        | 14/80 [00:22<01:28,  1.34s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  19%|█▉        | 15/80 [00:24<01:36,  1.48s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  20%|██        | 16/80 [00:25<01:27,  1.36s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  21%|██▏       | 17/80 [00:26<01:17,  1.24s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  22%|██▎       | 18/80 [00:29<01:58,  1.92s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  24%|██▍       | 19/80 [00:32<02:06,  2.08s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  25%|██▌       | 20/80 [00:33<01:50,  1.84s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  26%|██▋       | 21/80 [00:34<01:30,  1.53s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  28%|██▊       | 22/80 [00:35<01:24,  1.46s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  29%|██▉       | 23/80 [00:38<01:39,  1.75s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  30%|███       | 24/80 [00:40<01:53,  2.03s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  31%|███▏      | 25/80 [00:42<01:44,  1.90s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  32%|███▎      | 26/80 [00:44<01:45,  1.95s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  34%|███▍      | 27/80 [00:46<01:48,  2.04s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  35%|███▌      | 28/80 [00:48<01:40,  1.93s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  36%|███▋      | 29/80 [00:50<01:37,  1.91s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  38%|███▊      | 30/80 [00:51<01:30,  1.81s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  39%|███▉      | 31/80 [00:53<01:29,  1.83s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  40%|████      | 32/80 [00:54<01:19,  1.66s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  41%|████▏     | 33/80 [00:56<01:11,  1.53s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  42%|████▎     | 34/80 [00:58<01:25,  1.87s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  44%|████▍     | 35/80 [01:00<01:18,  1.75s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  45%|████▌     | 36/80 [01:01<01:06,  1.50s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  46%|████▋     | 37/80 [01:06<01:46,  2.48s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  48%|████▊     | 38/80 [01:08<01:39,  2.37s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  49%|████▉     | 39/80 [01:09<01:28,  2.16s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  50%|█████     | 40/80 [01:11<01:20,  2.02s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  51%|█████▏    | 41/80 [01:12<01:10,  1.81s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  52%|█████▎    | 42/80 [01:15<01:15,  1.99s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  54%|█████▍    | 43/80 [01:17<01:12,  1.96s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  55%|█████▌    | 44/80 [01:19<01:17,  2.14s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  56%|█████▋    | 45/80 [01:21<01:13,  2.09s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  57%|█████▊    | 46/80 [01:23<01:04,  1.89s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  59%|█████▉    | 47/80 [01:24<01:01,  1.87s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  60%|██████    | 48/80 [01:27<01:08,  2.13s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  61%|██████▏   | 49/80 [01:30<01:09,  2.23s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  62%|██████▎   | 50/80 [01:32<01:06,  2.22s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  64%|██████▍   | 51/80 [01:34<01:05,  2.24s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  65%|██████▌   | 52/80 [01:39<01:24,  3.02s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  66%|██████▋   | 53/80 [01:41<01:16,  2.82s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  68%|██████▊   | 54/80 [01:42<01:00,  2.33s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  69%|██████▉   | 55/80 [01:44<00:50,  2.03s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  70%|███████   | 56/80 [01:46<00:52,  2.18s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  71%|███████▏  | 57/80 [01:48<00:46,  2.04s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  72%|███████▎  | 58/80 [01:50<00:43,  1.96s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  74%|███████▍  | 59/80 [01:52<00:41,  1.96s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  75%|███████▌  | 60/80 [01:54<00:39,  2.00s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  76%|███████▋  | 61/80 [01:55<00:32,  1.72s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  78%|███████▊  | 62/80 [01:56<00:29,  1.62s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  79%|███████▉  | 63/80 [01:59<00:30,  1.80s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  80%|████████  | 64/80 [02:01<00:29,  1.87s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  81%|████████▏ | 65/80 [02:03<00:32,  2.16s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  82%|████████▎ | 66/80 [02:06<00:32,  2.35s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  84%|████████▍ | 67/80 [02:08<00:29,  2.24s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  85%|████████▌ | 68/80 [02:12<00:31,  2.61s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  86%|████████▋ | 69/80 [02:13<00:25,  2.30s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  88%|████████▊ | 70/80 [02:14<00:19,  1.98s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  89%|████████▉ | 71/80 [02:17<00:18,  2.05s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  90%|█████████ | 72/80 [02:19<00:17,  2.13s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  91%|█████████▏| 73/80 [02:21<00:14,  2.01s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  92%|█████████▎| 74/80 [02:22<00:11,  1.89s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  94%|█████████▍| 75/80 [02:23<00:07,  1.51s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  95%|█████████▌| 76/80 [02:24<00:05,  1.34s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  96%|█████████▋| 77/80 [02:26<00:04,  1.53s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  98%|█████████▊| 78/80 [02:28<00:03,  1.70s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1:  99%|█████████▉| 79/80 [02:30<00:01,  1.73s/it]/home/user/workspace/EchoMindServer/.venv_diarization_community/lib/python3.11/site-packages/pyannote/metrics/utils.py:199: UserWarning: 'uem' was approximated by the union of 'reference' and 'hypothesis' extents.
+  warnings.warn(
+pyannote_community_1: 100%|██████████| 80/80 [02:32<00:00,  1.77s/it]                                                                     WARNING: Value of auxiliary function has decreased!
+pyannote_community_1 mean DER = 0.3931992765267854 std DER = 0.11366152207465405
+EXIT:0
