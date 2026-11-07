@@ -22,16 +22,122 @@ header {
   padding: 16px 24px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
 }
 
 header h1 {
-  margin: 0 0 12px 0;
+  margin: 0;
   font-size: 20px;
+  width: 100%;
 }
 
 nav {
   display: flex;
   gap: 8px;
+  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+#logout-button {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+}
+
+.auth-box {
+  width: 100%;
+  max-width: 360px;
+  padding: 32px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.auth-box h1 {
+  margin: 0 0 20px 0;
+  font-size: 22px;
+  text-align: center;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.auth-tab-button {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.auth-tab-button.active {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.auth-form {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-form.active {
+  display: flex;
+}
+
+.auth-form input {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.auth-form button {
+  padding: 10px;
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#auth-status {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
 }
 
 .tab-button {

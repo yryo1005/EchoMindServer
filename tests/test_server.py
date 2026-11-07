@@ -11,6 +11,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "programs" / "server"))
 
 from app.api.browse import ConversationSummaryOut, UpdatePersonNameIn  # noqa: E402
+from app.auth import create_access_token, hash_password, verify_password  # noqa: E402
 from app.pipeline.person_identification import _cosine_similarity  # noqa: E402
 from app.services.gemini_client import _is_daily_quota_exceeded  # noqa: E402
 
@@ -70,3 +71,21 @@ def test_update_person_name_in_accepts_name() -> None:
     """人物名の更新リクエストモデルが文字列を受理することを確認するテスト．"""
     body = UpdatePersonNameIn(name="田中")
     assert body.name == "田中"
+
+
+def test_hash_password_and_verify_password_roundtrip() -> None:
+    """パスワードのハッシュ化と検証が正しく対応することを確認するテスト．"""
+    password_hash = hash_password("correct-password")
+    assert verify_password("correct-password", password_hash) is True
+    assert verify_password("wrong-password", password_hash) is False
+
+
+def test_create_access_token_contains_user_id() -> None:
+    """発行したJWTアクセストークンから元のユーザーIDを復元できることを確認するテスト．"""
+    import jwt as pyjwt
+
+    from app.config import JWT_ALGORITHM, get_jwt_secret
+
+    token = create_access_token("00000000-0000-0000-0000-000000000000")
+    payload = pyjwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+    assert payload["sub"] == "00000000-0000-0000-0000-000000000000"
