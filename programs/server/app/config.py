@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -30,6 +31,10 @@ NAME_ESTIMATION_MIN_UTTERANCE_COUNT = 10
 
 SAMPLE_RATE = 16000
 
+# --- 認証(アカウント登録・ログイン) ---
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRES_MINUTES = 60 * 24 * 7  # 7日間
+
 
 def load_tokens() -> dict:
     """プロジェクトルートのtokens.jsonを読み込む関数．
@@ -37,8 +42,30 @@ def load_tokens() -> dict:
     引数:
         なし
     戻り値:
-        tokens (dict): "huggingface_hub", "gemini" 等のAPIキーを含む辞書
+        tokens (dict): "huggingface_hub", "gemini"等のAPIキー，"jwt_secret"(JWT署名鍵)を含む辞書
     """
     tokens_path = PROJECT_ROOT / "tokens.json"
     with open(tokens_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def get_jwt_secret() -> str:
+    """JWT署名用の秘密鍵を取得する関数．
+
+    `tokens.json`に"jwt_secret"キーが存在しない場合は新たに生成し，`tokens.json`
+    (Git管理対象外)へ書き込んで永続化する(サーバー再起動後も同じ鍵を使うため)．
+
+    引数:
+        なし
+    戻り値:
+        jwt_secret (str): JWT署名用の秘密鍵
+    """
+    tokens_path = PROJECT_ROOT / "tokens.json"
+    tokens = load_tokens()
+    if "jwt_secret" in tokens:
+        return tokens["jwt_secret"]
+
+    tokens["jwt_secret"] = secrets.token_hex(32)
+    with open(tokens_path, "w", encoding="utf-8") as f:
+        json.dump(tokens, f, ensure_ascii=False, indent=2)
+    return tokens["jwt_secret"]

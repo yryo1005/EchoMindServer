@@ -29,16 +29,20 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-12))
 
 
-def resolve_person(session: Session, speaker_embedding: np.ndarray) -> Person:
+def resolve_person(session: Session, speaker_embedding: np.ndarray, user_id: str) -> Person:
     """話者埋め込みから対応するPersonを取得する(なければ新規作成する)関数．
+
+    話者の照合は同一アカウント(user_id)内の人物に限定する(他ユーザーの人物と
+    誤って統合されないようにするため)．
 
     引数:
         session (Session): DBセッション
         speaker_embedding (np.ndarray): shape=(256,)の話者埋め込み
+        user_id (str): 話者が属するアカウントのユーザーID
     戻り値:
         person (Person): 対応するPerson(既存または新規作成)
     """
-    existing_persons = session.scalars(select(Person)).all()
+    existing_persons = session.scalars(select(Person).where(Person.user_id == user_id)).all()
 
     best_person = None
     best_similarity = -1.0
@@ -53,7 +57,7 @@ def resolve_person(session: Session, speaker_embedding: np.ndarray) -> Person:
     if best_person is not None and best_similarity >= SPEAKER_MATCH_THRESHOLD:
         return best_person
 
-    new_person = Person(representative_embedding=speaker_embedding.tolist())
+    new_person = Person(user_id=user_id, representative_embedding=speaker_embedding.tolist())
     session.add(new_person)
     session.flush()
     return new_person
@@ -78,7 +82,8 @@ def estimate_name_from_context(context_lines: list[str]) -> str:
         "特定できる場合は，名前のみを出力してください(説明は不要)．\n\n"
         f"{context_text}"
     )
-    return generate_text(prompt).strip()
+    result = generate_text(prompt)
+    return result.strip() if result else "不明"
 
 
 def maybe_estimate_name(session: Session, person: Person) -> None:

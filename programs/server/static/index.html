@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EchoMind</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>EchoMind</h1>
+    <nav>
+      <button class="tab-button active" data-tab="chat">質問する</button>
+      <button class="tab-button" data-tab="browse">過去の会話を聞く</button>
+      <button class="tab-button" data-tab="persons">話者の名前を設定</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-chat" class="tab-panel active">
+      <form id="chat-form">
+        <textarea id="chat-query" placeholder="例: 明日のMTGは何時から？" rows="2" required></textarea>
+        <button type="submit">質問する</button>
+      </form>
+      <div id="chat-result" class="hidden">
+        <h2>回答</h2>
+        <p id="chat-answer"></p>
+        <h3>参照した発言のタイムスタンプ</h3>
+        <ul id="chat-references"></ul>
+      </div>
+      <p id="chat-status"></p>
+    </section>
+
+    <section id="tab-browse" class="tab-panel">
+      <div class="browse-layout">
+        <div class="conversation-list">
+          <h2>会話一覧</h2>
+          <ul id="conversation-list"></ul>
+        </div>
+        <div class="conversation-detail">
+          <h2>発言一覧</h2>
+          <div id="conversation-detail">
+            <p class="placeholder">左の一覧から会話を選択してください．</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-persons" class="tab-panel">
+      <p class="hint">同じ人物には自動的に同一の人物IDが割り当てられます．名前が自動推定されない場合，ここから手動で設定できます．</p>
+      <table id="person-table">
+        <thead>
+          <tr>
+            <th>人物ID</th>
+            <th>名前</th>
+            <th>発話数</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="person-table-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

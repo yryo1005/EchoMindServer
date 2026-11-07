@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import time
 from pathlib import Path
 
@@ -25,6 +26,9 @@ OUTPUT_DIR = Path("outputs/ex002_model_benchmark/embedding")
 TOP_K_LIST = [1, 3, 5]
 N_QUERY_SAMPLES = 400  # コーパス全体(検索対象)は維持し，質問生成対象のみサンプリングする(API呼び出し削減のため)
 SEED = 0
+BATCH_SIZE = 10  # 1回のGemini API呼び出しでまとめて質問を生成する発話数(トークン消費削減のため)
+
+_LINE_PATTERN = re.compile(r"^\s*(\d+)\s*[.．]\s*(.*)$")
 
 
 def _load_gemini_api_key() -> str:
@@ -44,22 +48,38 @@ def _load_gemini_api_key() -> str:
     wait=wait_random_exponential(multiplier=2, max=60),
     stop=stop_after_attempt(8),
 )
-def _generate_question(client: genai.Client, text: str) -> str:
-    """1件の発話テキストから質問文をGemini APIで生成する関数(一時的なエラーはリトライする)．
+def _generate_questions_batch(client: genai.Client, texts: list[str]) -> list[str]:
+    """複数件の発話テキストから質問文をまとめて1回のGemini API呼び出しで生成する関数．
+
+    1発言ごとにAPIを呼び出すとAPIコール数(トークン消費)が発話数に比例して増えるため，
+    `BATCH_SIZE`件ずつまとめて1回のAPI呼び出しで質問を生成する．
 
     引数:
         client (genai.Client): Gemini APIクライアント
-        text (str): 質問の元となる発話テキスト
+        texts (list[str]): 質問の元となる発話テキストのリスト
     戻り値:
-        question (str): 生成された質問文
+        questions (list[str]): textsと同じ順序・件数の質問文のリスト
     """
+    numbered_texts = "\n".join(f"{i + 1}. {text}" for i, text in enumerate(texts))
     prompt = (
-        "次の発言内容だけから答えられる，具体的な一問一答形式の短い日本語の質問を1つだけ作成してください．"
-        "質問文のみを出力し，他の説明は不要です．\n\n"
-        f"発言: {text}"
+        "以下は複数の発言です．各発言内容だけから答えられる，具体的な一問一答形式の"
+        "短い日本語の質問をそれぞれ1つずつ作成してください．"
+        "入力と同じ件数・同じ順序で，各行を「番号. 質問文」の形式のみで出力してください．"
+        "説明や前置きは不要です．\n\n"
+        f"{numbered_texts}"
     )
     response = client.models.generate_content(model="gemini-3.1-flash-lite", contents=prompt)
-    return response.text.strip()
+    text_response = response.text or ""
+
+    questions = [""] * len(texts)
+    for line in text_response.splitlines():
+        match = _LINE_PATTERN.match(line)
+        if match is None:
+            continue
+        index = int(match.group(1)) - 1
+        if 0 <= index < len(texts):
+            questions[index] = match.group(2).strip()
+    return questions
 
 
 def _collect_corpus_and_queries(client: genai.Client) -> tuple[list[str], list[tuple[str, int]]]:
@@ -86,7 +106,7 @@ def _collect_corpus_and_queries(client: genai.Client) -> tuple[list[str], list[t
     sample_indices = rng.sample(range(len(corpus)), k=min(N_QUERY_SAMPLES, len(corpus)))
 
     # 途中でAPIのレート制限・クォータに達した場合に備え，既に生成済みの質問はキャッシュから再利用し，
-    # 1件生成するたびにキャッシュへ追記保存する(途中終了しても進捗が失われないようにする)
+    # 1バッチ生成するたびにキャッシュへ追記保存する(途中終了しても進捗が失われないようにする)
     queries: list[tuple[str, int]] = []
     if cache_path.exists():
         cached = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -98,11 +118,12 @@ def _collect_corpus_and_queries(client: genai.Client) -> tuple[list[str], list[t
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"corpus": corpus, "queries": queries}, f, ensure_ascii=False, indent=2)
 
-    for idx in tqdm(sample_indices, desc="generate_queries", leave=False):
-        if idx in done_indices:
-            continue
-        question = _generate_question(client, corpus[idx])
-        queries.append((question, idx))
+    remaining_indices = [idx for idx in sample_indices if idx not in done_indices]
+    for batch_start in tqdm(range(0, len(remaining_indices), BATCH_SIZE), desc="generate_queries", leave=False):
+        batch_indices = remaining_indices[batch_start:batch_start + BATCH_SIZE]
+        batch_questions = _generate_questions_batch(client, [corpus[idx] for idx in batch_indices])
+        for idx, question in zip(batch_indices, batch_questions):
+            queries.append((question, idx))
         _save_cache()
         time.sleep(4.5)
 

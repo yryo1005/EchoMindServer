@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Utterance
+from app.auth import get_current_user
+from app.db.models import Conversation, User, Utterance
 from app.db.session import get_session
 from app.pipeline import embedding
 from app.services.gemini_client import generate_text
@@ -24,7 +25,6 @@ CONTEXT_WINDOW = 2  # 該当発話の前後何発話を会話コンテキスト�
 class ChatRequest(BaseModel):
     """/api/chatのリクエストボディ．"""
 
-    user_id: str
     query: str
 
 
@@ -35,17 +35,24 @@ class ChatResponse(BaseModel):
     references: list[str]
 
 
-def _search_relevant_utterances(session: Session, query_embedding, top_k: int) -> list[Utterance]:
-    """質問文のベクトルに基づき，類似度が高い発話を検索する関数．
+def _search_relevant_utterances(session: Session, query_embedding, user_id: str, top_k: int) -> list[Utterance]:
+    """質問文のベクトルに基づき，自分のアカウントの発話の中から類似度が高いものを検索する関数．
 
     引数:
         session (Session): DBセッション
         query_embedding: shape=(1024,)の質問文ベクトル
+        user_id (str): 検索対象を絞り込むユーザーID
         top_k (int): 取得する件数
     戻り値:
         utterances (list[Utterance]): 類似度が高い順の発話リスト
     """
-    stmt = select(Utterance).order_by(Utterance.embedding.cosine_distance(query_embedding)).limit(top_k)
+    stmt = (
+        select(Utterance)
+        .join(Conversation, Utterance.conversation_id == Conversation.conversation_id)
+        .where(Conversation.user_id == user_id)
+        .order_by(Utterance.embedding.cosine_distance(query_embedding))
+        .limit(top_k)
+    )
     return list(session.scalars(stmt))
 
 
@@ -98,18 +105,23 @@ def _build_answer_prompt(query: str, context_utterances: list[Utterance]) -> str
 
 
 @router.post("/api/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, session: Session = Depends(get_session)) -> ChatResponse:
-    """過去の会話記録に基づいて質問に回答するエンドポイント．
+def chat(
+    request: ChatRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ChatResponse:
+    """過去の会話記録(自分のアカウントのもののみ)に基づいて質問に回答するエンドポイント．
 
     引数:
-        request (ChatRequest): user_idとqueryを含むリクエスト
+        request (ChatRequest): queryを含むリクエスト
         session (Session): DBセッション(依存性注入)
+        current_user (User): 認証されたユーザー(依存性注入)
     戻り値:
         response (ChatResponse): 回答テキストと参照タイムスタンプ
     """
     query_embedding = embedding.embed_query(request.query)
 
-    top_utterances = _search_relevant_utterances(session, query_embedding, TOP_K)
+    top_utterances = _search_relevant_utterances(session, query_embedding, current_user.user_id, TOP_K)
     context_utterances = _expand_with_context(session, top_utterances)
 
     prompt = _build_answer_prompt(request.query, context_utterances)

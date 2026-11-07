@@ -7,8 +7,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable
 
 import librosa
+from sqlalchemy.orm import Session
 
 from app.config import SAMPLE_RATE, UTTERANCE_AUDIO_DIR
 from app.db.models import Conversation, Utterance
@@ -20,12 +22,28 @@ from app.pipeline.person_identification import maybe_estimate_name, resolve_pers
 DOMAIN_TERMS: dict[str, list[str]] = {}
 
 
-def process_uploaded_audio(audio_path: Path, recorded_at: datetime) -> None:
+def process_uploaded_audio(
+    audio_path: Path,
+    recorded_at: datetime,
+    user_id: str,
+    session_factory: Callable[[], Session] = SessionLocal,
+    enable_correction: bool = True,
+    enable_name_estimation: bool = True,
+) -> None:
     """アップロードされた音声ファイルに対し，常時処理パイプラインを実行する関数．
 
     引数:
         audio_path (Path): アップロードされた音声ファイルのパス
         recorded_at (datetime): 録音開始時刻(発言の絶対タイムスタンプ算出に使用)
+        user_id (str): アップロードを行ったアカウントのユーザーID．
+            会話・人物をこのアカウントに紐づけ，他アカウントのデータと分離するために使用する．
+        session_factory (Callable[[], Session]) = SessionLocal: DBセッションの生成関数．
+            `programs/ex003_server_evaluation/`での精度検証時に，本番用DBと異なる
+            評価用DBへ向けるために上書きできる．
+        enable_correction (bool) = True: Gemini APIによる文章校正(STEP4)を行うかどうか．
+            `programs/ex003_server_evaluation/evaluate_speaker_id.py`のように，
+            話者ID統合のみを検証したい場合にAPI呼び出しを抑制するためFalseにできる．
+        enable_name_estimation (bool) = True: 名前推定を行うかどうか．用途はenable_correctionと同様．
     戻り値:
         なし
     """
@@ -46,11 +64,12 @@ def process_uploaded_audio(audio_path: Path, recorded_at: datetime) -> None:
     conversation_id_dir = UTTERANCE_AUDIO_DIR / audio_path.stem
     clip_paths = segment.cut_utterance_clips(audio, speaker_segments, conversation_id_dir)
 
-    session = SessionLocal()
+    session = session_factory()
     try:
         started_at = recorded_at + timedelta(seconds=speaker_segments[0].start)
         ended_at = recorded_at + timedelta(seconds=speaker_segments[-1].end)
         conversation = Conversation(
+            user_id=user_id,
             started_at=started_at,
             ended_at=ended_at,
             source_audio_path=str(audio_path),
@@ -59,14 +78,18 @@ def process_uploaded_audio(audio_path: Path, recorded_at: datetime) -> None:
         session.flush()
 
         temp_label_to_person = {
-            temp_label: resolve_person(session, speaker_embeddings[temp_label])
+            temp_label: resolve_person(session, speaker_embeddings[temp_label], user_id)
             for temp_label in speaker_embeddings
         }
 
-        for speaker_segment, clip_path in zip(speaker_segments, clip_paths):
-            # STEP 4: 音声認識とベクトル化
-            raw_text = asr.transcribe(clip_path, domain_terms=DOMAIN_TERMS)
-            corrected_text = correction.correct_text(raw_text)
+        # STEP 4: 音声認識 — 発話ごとに実行する(ASRはローカルモデルのためAPIコール数は問題にならない)
+        raw_texts = [asr.transcribe(clip_path, domain_terms=DOMAIN_TERMS) for clip_path in clip_paths]
+
+        # 文章校正は会話全体をまとめて1回のGemini API呼び出しで行い，APIコール数(トークン消費)を抑える
+        corrected_texts = correction.correct_texts(raw_texts) if enable_correction else raw_texts
+
+        for speaker_segment, clip_path, corrected_text in zip(speaker_segments, clip_paths, corrected_texts):
+            # ベクトル化(ローカルモデル)
             text_embedding = embedding.embed_passage(corrected_text)
 
             person = temp_label_to_person[speaker_segment.temp_speaker_label]
@@ -87,8 +110,9 @@ def process_uploaded_audio(audio_path: Path, recorded_at: datetime) -> None:
             session.add(utterance)
 
         session.flush()
-        for person in temp_label_to_person.values():
-            maybe_estimate_name(session, person)
+        if enable_name_estimation:
+            for person in temp_label_to_person.values():
+                maybe_estimate_name(session, person)
 
         session.commit()
     finally:

@@ -22,19 +22,31 @@
   - `app/config.py`: モデル選定(ベンチマーク結果に基づく)やDB接続先等の設定値．
   - `app/api/upload.py`: `POST /api/upload`(音声アップロード)．
   - `app/api/chat.py`: `POST /api/chat`(QA)．
+  - `app/api/browse.py`: `GET /api/persons`，`PUT /api/persons/{id}/name`(名前の手動設定)，`GET /api/conversations`，`GET /api/conversations/{id}`(ブラウザフロントエンド用の会話・発言閲覧API)．
+  - `app/api/audio.py`: `GET /api/audio/{utterance_id}`(発言の音声クリップ配信)．
   - `app/pipeline/`: VAD・話者分離・音声単位の切り出し・ASR・文章校正・ベクトル化・話者ID統合/名前推定・パイプライン全体の統括(`orchestrator.py`)．
   - `app/db/`: SQLAlchemyモデル(`models.py`)とセッション管理(`session.py`)．
-  - `app/services/gemini_client.py`: Gemini APIクライアントのラッパー(レート制限時のリトライを含む)．
+  - `app/services/gemini_client.py`: Gemini APIクライアントのラッパー．1分あたりのレート制限・一時的なサーバーエラーは同一モデルで指数バックオフリトライし，1日あたりのリクエスト数上限に達した場合は候補モデル(`_MODEL_CANDIDATES`)へ自動的に切り替える．
   - `docker-compose.yml`: PostgreSQL+pgvectorのコンテナ定義．
+  - `static/`: ブラウザ用フロントエンド(ビルドツールを使わないプレーンなHTML/JS/CSS．`app.main`がルートパスに静的配信する)．`index.html`(質問タブ・会話閲覧タブ)，`app.js`，`style.css`．
   - `storage/`: アップロードされた音声・発話クリップの保存先(Git管理対象外)．
-- `datasets/ex001_model_benchmark/`: ベンチマーク用データ(JVSコーパスの生音声，疑似会話データ，発話テキストのトランスクリプト)．`ex002_model_benchmark`もこのJVS生データ(`raw/`)を再利用する．Git管理対象外．
+- `programs/ex003_server_evaluation/`: `programs/server/`のパイプライン自体(モデル選定ではなく)の精度検証．話者ID統合と名前推定を対象とする．
+  - `data_speaker_id.py`: 同一話者が複数の別々の会話(アップロード)に跨って登場する疑似データ(15セッション，話者プール10名)を生成する．
+  - `evaluate_speaker_id.py`: 生成したセッションを実際のサーバーパイプライン(評価用DB`echomind_eval`を使用)に通し，人物ID統合の純度を評価する．
+  - `data_name_estimation.py`: 名前の手がかり(自己紹介・呼びかけ)を含む疑似会話テキストをGemini APIで生成する(TTSが利用できないため，テキストレベルの検証に限定)．
+  - `evaluate_name_estimation.py`: サーバーが実際に使用する名前推定関数(`estimate_name_from_context`)の精度を評価する．
+  - `visualize_result.ipynb`: このディレクトリ専用の可視化ノートブック(ex001/ex002のモデル比較とは評価軸が異なるため，プロジェクトルートのノートブックとは別に用意している)．
+- `datasets/ex001_model_benchmark/`: ベンチマーク用データ(JVSコーパスの生音声，疑似会話データ，発話テキストのトランスクリプト)．`ex002_model_benchmark`，`ex003_server_evaluation`もこのJVS生データ(`raw/`)を再利用する．Git管理対象外．
 - `datasets/ex002_model_benchmark/`: ex002の疑似会話データ(重複発話・ノイズ付加)．Git管理対象外．
-- `outputs/ex001_model_benchmark/`, `outputs/ex002_model_benchmark/`: 各ベンチマークの評価結果(metrics.json，比較グラフ)．Git管理対象外．
+- `datasets/ex003_server_evaluation/`: ex003の疑似複数セッションデータ，名前推定テストケース．Git管理対象外．
+- `outputs/ex001_model_benchmark/`, `outputs/ex002_model_benchmark/`, `outputs/ex003_server_evaluation/`: 各検証の評価結果(metrics.json，比較グラフ)．Git管理対象外．
 - `third_party/Haas-ASR/`: Haas-ja ASRモデルの推論コード(GitHubから手動クローン)．`haas-asr`パッケージとして`.venv_ml`にインストール済み．Git管理対象外．
-- `visualize_result.ipynb`: `outputs/{EXPERIMENT}/`内の評価結果を比較グラフとして可視化するノートブック．ノートブック冒頭の`EXPERIMENT`変数で`ex001_model_benchmark`/`ex002_model_benchmark`を切り替える．
+- `visualize_result.ipynb`: `outputs/{EXPERIMENT}/`内の評価結果を比較グラフとして可視化するノートブック(ex001/ex002用)．ノートブック冒頭の`EXPERIMENT`変数で`ex001_model_benchmark`/`ex002_model_benchmark`を切り替える．
 - `.orders/`: ユーザーからの作業指示の記録．
 - `.reports/report_001.md`: ex001_model_benchmarkのベンチマーク結果・考察．
-- `.reports/report_002.md`: ex002_model_benchmarkのベンチマーク結果・考察・モデル選定の再検討(最新)．
+- `.reports/report_002.md`: ex002_model_benchmarkのベンチマーク結果・考察・モデル選定の再検討．
+- `.reports/report_003.md`: サーバー実装(programs/server/)の内容・動作確認結果．
+- `.reports/report_004.md`: ex003_server_evaluationの精度検証結果(話者ID統合・名前推定，最新)．
 
 ## プログラム間の依存関係
 
@@ -63,13 +75,23 @@ programs/server/app/main.py (FastAPIアプリ)
   │                                         ├─ diarization.py (pyannote 3.1, 話者埋め込みも取得)
   │                                         ├─ segment.py (発話単位に音声を切り出し)
   │                                         ├─ asr.py (Haas-ja)
-  │                                         ├─ correction.py (Gemini APIで文章校正)
+  │                                         ├─ correction.py (Gemini APIで文章校正．会話内の全発話をまとめて1回のAPI呼び出しで処理)
   │                                         ├─ embedding.py (ruri-large-v2)
   │                                         ├─ person_identification.py (話者ID統合・名前推定)
   │                                         └─ db/models.py へ保存(Conversation, Utterance, Person)
   └─ api/chat.py ──> pipeline/embedding.py (クエリのベクトル化)
                      ──> db(pgvectorでの類似度検索)
                      ──> services/gemini_client.py (回答生成)
+                                │
+                                ▼
+programs/ex003_server_evaluation/ (パイプライン自体の精度検証)
+  ├─ data_speaker_id.py ──> evaluate_speaker_id.py
+  │       (orchestrator.process_uploaded_audioを評価用DB"echomind_eval"に向けて直接呼び出す)
+  └─ data_name_estimation.py ──> evaluate_name_estimation.py
+          (person_identification.estimate_name_from_contextを直接呼び出す)
+                                │
+                                ▼
+                      .reports/report_004.md
 ```
 
 ## 外部モジュール・APIとの依存関係
@@ -140,17 +162,37 @@ curl -X POST http://localhost:8000/api/chat -H "Content-Type: application/json" 
   -d '{"user_id": "user01", "query": "明日のMTGは何時から？"}'
 ```
 
+ブラウザ用フロントエンド: サーバー起動後，`http://localhost:8000/`をブラウザで開くと，質問(QA)タブと過去の会話を聞くタブが利用できる．
+
 テスト:
 
 ```bash
 .venv_ml/bin/python -m pytest tests/test_server.py -v
 ```
 
+### サーバーパイプラインの精度検証(ex003_server_evaluation)
+
+```bash
+# 評価用DBの作成(本番用"echomind"とは別のDB．初回のみ)
+docker exec <postgresコンテナ名> psql -U echomind -d echomind -c "CREATE DATABASE echomind_eval"
+
+# 話者ID統合の精度検証
+.venv_ml/bin/python programs/ex003_server_evaluation/data_speaker_id.py
+.venv_ml/bin/python programs/ex003_server_evaluation/evaluate_speaker_id.py
+
+# 名前推定の精度検証(Gemini APIで疑似会話テキストを生成してから評価する)
+.venv_ml/bin/python programs/ex003_server_evaluation/data_name_estimation.py
+.venv_ml/bin/python programs/ex003_server_evaluation/evaluate_name_estimation.py
+
+# 結果の可視化
+.venv_ml/bin/jupyter nbconvert --to notebook --execute --inplace programs/ex003_server_evaluation/visualize_result.ipynb
+```
+
 ## 実験結果・文書の保存場所
 
-- 評価結果の数値: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/{手法名}/metrics.json`
-- 比較グラフ: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/comparison.png`
-- レポート: `.reports/report_001.md`(初回)，`.reports/report_002.md`(拡充版，最新)
+- 評価結果の数値: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/{手法名}/metrics.json`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/metrics.json`
+- 比較グラフ: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/comparison.png`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/comparison.png`
+- レポート: `.reports/report_001.md`(モデル選定・初回)，`report_002.md`(モデル選定・拡充版)，`report_003.md`(サーバー実装)，`report_004.md`(パイプライン精度検証，最新)
 
 ## 必要なAPIキー・設定ファイル
 
