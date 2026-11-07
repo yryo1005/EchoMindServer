@@ -1,5 +1,7 @@
 // EchoMindブラウザフロントエンド．ビルドツールを使わないプレーンなJavaScript．
 
+const TOKEN_STORAGE_KEY = "echomind_access_token";
+
 function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
@@ -9,6 +11,137 @@ function escapeHtml(text) {
 function formatTimestamp(isoString) {
   const date = new Date(isoString);
   return date.toLocaleString("ja-JP", { hour12: false });
+}
+
+// --- 認証 ---
+
+function getToken() {
+  try {
+    return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function setToken(token) {
+  try {
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch (error) {
+    // ブラウザのプライベートモード等でlocalStorageが使えない場合は無視する
+  }
+}
+
+function clearToken() {
+  try {
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch (error) {
+    // 無視する
+  }
+}
+
+// 認証付きfetch．401が返った場合は自動的にログイン画面へ戻す．
+async function authorizedFetch(url, options = {}) {
+  const token = getToken();
+  const headers = { ...(options.headers || {}), Authorization: `Bearer ${token}` };
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    clearToken();
+    showAuthScreen();
+    throw new Error("ログインの有効期限が切れました．再度ログインしてください．");
+  }
+  return response;
+}
+
+function showAuthScreen() {
+  document.getElementById("auth-screen").classList.remove("hidden");
+  document.getElementById("app-root").classList.add("hidden");
+}
+
+async function showAppRoot() {
+  document.getElementById("auth-screen").classList.add("hidden");
+  document.getElementById("app-root").classList.remove("hidden");
+
+  try {
+    const response = await authorizedFetch("/api/auth/me");
+    if (response.ok) {
+      const me = await response.json();
+      document.getElementById("current-user-email").textContent = me.email;
+    }
+  } catch (error) {
+    return;
+  }
+
+  loadConversations();
+  loadPersons();
+}
+
+function setupAuth() {
+  const authTabButtons = document.querySelectorAll(".auth-tab-button");
+  authTabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      authTabButtons.forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".auth-form").forEach((f) => f.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(`${button.dataset.authTab}-form`).classList.add("active");
+    });
+  });
+
+  const statusEl = document.getElementById("auth-status");
+
+  document.getElementById("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+
+    statusEl.textContent = "ログイン中…";
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || `サーバーエラー (${response.status})`);
+      }
+      const data = await response.json();
+      setToken(data.access_token);
+      statusEl.textContent = "";
+      await showAppRoot();
+    } catch (error) {
+      statusEl.textContent = `エラー: ${error.message}`;
+    }
+  });
+
+  document.getElementById("register-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.getElementById("register-email").value.trim();
+    const password = document.getElementById("register-password").value;
+
+    statusEl.textContent = "登録中…";
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || `サーバーエラー (${response.status})`);
+      }
+      const data = await response.json();
+      setToken(data.access_token);
+      statusEl.textContent = "";
+      await showAppRoot();
+    } catch (error) {
+      statusEl.textContent = `エラー: ${error.message}`;
+    }
+  });
+
+  document.getElementById("logout-button").addEventListener("click", () => {
+    clearToken();
+    showAuthScreen();
+  });
 }
 
 // --- タブ切り替え ---
@@ -45,10 +178,10 @@ function setupChat() {
     resultEl.classList.add("hidden");
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await authorizedFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: "web_user", query }),
+        body: JSON.stringify({ query }),
       });
       if (!response.ok) {
         throw new Error(`サーバーエラー (${response.status})`);
@@ -80,7 +213,7 @@ async function loadConversations() {
   listEl.innerHTML = "<li class=\"placeholder\">読み込み中…</li>";
 
   try {
-    const response = await fetch("/api/conversations?limit=50");
+    const response = await authorizedFetch("/api/conversations?limit=50");
     if (!response.ok) throw new Error(`サーバーエラー (${response.status})`);
     const conversations = await response.json();
 
@@ -114,7 +247,7 @@ async function selectConversation(conversationId, listItemEl) {
   detailEl.innerHTML = "<p class=\"placeholder\">読み込み中…</p>";
 
   try {
-    const response = await fetch(`/api/conversations/${conversationId}`);
+    const response = await authorizedFetch(`/api/conversations/${conversationId}`);
     if (!response.ok) throw new Error(`サーバーエラー (${response.status})`);
     const conversation = await response.json();
 
@@ -126,8 +259,17 @@ async function selectConversation(conversationId, listItemEl) {
         <span class="speaker">${escapeHtml(utterance.person_name || "不明な人物")}</span>
         <span class="timestamp">${formatTimestamp(utterance.start_time)}</span>
         <p class="text">${escapeHtml(utterance.text)}</p>
-        <audio controls src="${utterance.audio_url}"></audio>
       `;
+      const audioEl = document.createElement("audio");
+      audioEl.controls = true;
+      // 音声の取得には認証が必要なため，blob URLを経由して<audio>要素に渡す
+      authorizedFetch(utterance.audio_url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          audioEl.src = URL.createObjectURL(blob);
+        })
+        .catch(() => {});
+      div.appendChild(audioEl);
       detailEl.appendChild(div);
     });
   } catch (error) {
@@ -142,7 +284,7 @@ async function loadPersons() {
   tbody.innerHTML = "<tr><td colspan=\"4\" class=\"placeholder\">読み込み中…</td></tr>";
 
   try {
-    const response = await fetch("/api/persons");
+    const response = await authorizedFetch("/api/persons");
     if (!response.ok) throw new Error(`サーバーエラー (${response.status})`);
     const persons = await response.json();
 
@@ -180,7 +322,7 @@ async function savePersonName(personId, name, button) {
   button.textContent = "保存中…";
 
   try {
-    const response = await fetch(`/api/persons/${personId}/name`, {
+    const response = await authorizedFetch(`/api/persons/${personId}/name`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -197,7 +339,12 @@ async function savePersonName(personId, name, button) {
 
 // --- 初期化 ---
 
+setupAuth();
 setupTabs();
 setupChat();
-loadConversations();
-loadPersons();
+
+if (getToken()) {
+  showAppRoot();
+} else {
+  showAuthScreen();
+}

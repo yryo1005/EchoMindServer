@@ -7,60 +7,90 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>EchoMind</h1>
-    <nav>
-      <button class="tab-button active" data-tab="chat">質問する</button>
-      <button class="tab-button" data-tab="browse">過去の会話を聞く</button>
-      <button class="tab-button" data-tab="persons">話者の名前を設定</button>
-    </nav>
-  </header>
-
-  <main>
-    <section id="tab-chat" class="tab-panel active">
-      <form id="chat-form">
-        <textarea id="chat-query" placeholder="例: 明日のMTGは何時から？" rows="2" required></textarea>
-        <button type="submit">質問する</button>
-      </form>
-      <div id="chat-result" class="hidden">
-        <h2>回答</h2>
-        <p id="chat-answer"></p>
-        <h3>参照した発言のタイムスタンプ</h3>
-        <ul id="chat-references"></ul>
+  <div id="auth-screen">
+    <div class="auth-box">
+      <h1>EchoMind</h1>
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-button active" data-auth-tab="login">ログイン</button>
+        <button type="button" class="auth-tab-button" data-auth-tab="register">アカウント登録</button>
       </div>
-      <p id="chat-status"></p>
-    </section>
 
-    <section id="tab-browse" class="tab-panel">
-      <div class="browse-layout">
-        <div class="conversation-list">
-          <h2>会話一覧</h2>
-          <ul id="conversation-list"></ul>
+      <form id="login-form" class="auth-form active">
+        <input type="email" id="login-email" placeholder="メールアドレス" required />
+        <input type="password" id="login-password" placeholder="パスワード" required />
+        <button type="submit">ログイン</button>
+      </form>
+
+      <form id="register-form" class="auth-form">
+        <input type="email" id="register-email" placeholder="メールアドレス" required />
+        <input type="password" id="register-password" placeholder="パスワード(8文字以上)" required minlength="8" />
+        <button type="submit">登録する</button>
+      </form>
+
+      <p id="auth-status"></p>
+    </div>
+  </div>
+
+  <div id="app-root" class="hidden">
+    <header>
+      <h1>EchoMind</h1>
+      <nav>
+        <button class="tab-button active" data-tab="chat">質問する</button>
+        <button class="tab-button" data-tab="browse">過去の会話を聞く</button>
+        <button class="tab-button" data-tab="persons">話者の名前を設定</button>
+      </nav>
+      <div class="header-right">
+        <span id="current-user-email"></span>
+        <button type="button" id="logout-button">ログアウト</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="tab-chat" class="tab-panel active">
+        <form id="chat-form">
+          <textarea id="chat-query" placeholder="例: 明日のMTGは何時から？" rows="2" required></textarea>
+          <button type="submit">質問する</button>
+        </form>
+        <div id="chat-result" class="hidden">
+          <h2>回答</h2>
+          <p id="chat-answer"></p>
+          <h3>参照した発言のタイムスタンプ</h3>
+          <ul id="chat-references"></ul>
         </div>
-        <div class="conversation-detail">
-          <h2>発言一覧</h2>
-          <div id="conversation-detail">
-            <p class="placeholder">左の一覧から会話を選択してください．</p>
+        <p id="chat-status"></p>
+      </section>
+
+      <section id="tab-browse" class="tab-panel">
+        <div class="browse-layout">
+          <div class="conversation-list">
+            <h2>会話一覧</h2>
+            <ul id="conversation-list"></ul>
+          </div>
+          <div class="conversation-detail">
+            <h2>発言一覧</h2>
+            <div id="conversation-detail">
+              <p class="placeholder">左の一覧から会話を選択してください．</p>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="tab-persons" class="tab-panel">
-      <p class="hint">同じ人物には自動的に同一の人物IDが割り当てられます．名前が自動推定されない場合，ここから手動で設定できます．</p>
-      <table id="person-table">
-        <thead>
-          <tr>
-            <th>人物ID</th>
-            <th>名前</th>
-            <th>発話数</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="person-table-body"></tbody>
-      </table>
-    </section>
-  </main>
+      <section id="tab-persons" class="tab-panel">
+        <p class="hint">同じ人物には自動的に同一の人物IDが割り当てられます．名前が自動推定されない場合，ここから手動で設定できます．</p>
+        <table id="person-table">
+          <thead>
+            <tr>
+              <th>人物ID</th>
+              <th>名前</th>
+              <th>発話数</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="person-table-body"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
 
   <script src="app.js"></script>
 </body>
