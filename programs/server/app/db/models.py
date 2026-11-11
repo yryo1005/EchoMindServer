@@ -98,12 +98,17 @@ class UploadRecord(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"))
     client_file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content_sha256: Mapped[str] = mapped_column(String(64), index=True)
-    status: Mapped[str] = mapped_column(String(32), default="processing")  # processing/completed/rejected
+    status: Mapped[str] = mapped_column(String(32), default="processing")  # processing/completed/rejected/failed
     conversation_id: Mapped[str | None] = mapped_column(
         ForeignKey("conversations.conversation_id"), nullable=True
     )
     recorded_started_at: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # 直近で処理(または再試行)を開始した時刻．"processing"が停滞しているかどうかの判定に用いる．
+    # created_at(最初のアップロード時刻)は再試行時に更新されないため，この判定には使えない
+    # (再試行中の記録に対し，別の並行アップロードが誤って「停滞している」と判定し二重処理
+    # してしまうことを防ぐため，処理の開始ごとに更新される専用の列を持つ)．
+    processing_started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Utterance(Base):

@@ -108,26 +108,57 @@ def _guess_extension(filename: str | None) -> str:
     return _DEFAULT_EXTENSION
 
 
-def _is_retryable(record: UploadRecord) -> bool:
+def _is_stale_processing(record: UploadRecord) -> bool:
+    """"processing"のまま停滞している(サーバー異常終了等で処理が中断された可能性がある)かを判定する関数．
+
+    判定には`processing_started_at`(直近で処理を開始した時刻)を用いる．`created_at`
+    (最初のアップロード時刻)は再試行時に更新されないため使用しない．もし`created_at`で
+    判定すると，最初のアップロードから長時間経過した後に正常に再試行している最中に，
+    別の並行アップロードがその記録を「停滞している」と誤判定し，二重に処理してしまう．
+
+    引数:
+        record (UploadRecord): 対象のアップロード記録
+    戻り値:
+        is_stale (bool): 停滞しているとみなせるかどうか
+    """
+    age = datetime.utcnow() - record.processing_started_at
+    return age > _STALE_PROCESSING_TIMEOUT
+
+
+def _refresh_status(record: UploadRecord, session: Session) -> str:
+    """アップロード記録の現在のステータスを返す．
+
+    "processing"のまま停滞している場合は，このタイミングで"failed"へ更新してから返す．
+    これにより，`POST /api/upload`での再試行判定だけでなく，`GET .../status`での
+    ポーリングの際にも，停滞した記録がいつまでも"processing"のまま返り続けることを防ぐ
+    (クライアントが再送するきっかけを得られるようにする)．
+
+    引数:
+        record (UploadRecord): 対象のアップロード記録
+        session (Session): DBセッション
+    戻り値:
+        status (str): 更新後の(最新の)ステータス
+    """
+    if record.status == "processing" and _is_stale_processing(record):
+        record.status = "failed"
+        session.commit()
+    return record.status
+
+
+def _is_retryable(record: UploadRecord, session: Session) -> bool:
     """既存のアップロード記録が再試行の対象となるかを判定する関数．
 
-    "failed"(処理中にエラーが発生し再試行すべき)，または"processing"のまま
-    `_STALE_PROCESSING_TIMEOUT`を超えて更新されていない(サーバー異常終了等で
-    処理が中断されたまま残っている可能性がある)場合に再試行を許可する．
-    "completed"(処理済み)・"rejected"(会話として扱われないと判定済み)は
+    "failed"(処理中にエラーが発生した，または停滞を検出して失敗扱いにした)の場合に
+    再試行を許可する．"completed"(処理済み)・"rejected"(会話として扱われないと判定済み)は
     再実行しても結果が変わらないため，再試行の対象としない．
 
     引数:
         record (UploadRecord): 既存のアップロード記録
+        session (Session): DBセッション(停滞判定による更新のコミットに使用)
     戻り値:
         is_retryable (bool): 再試行を許可するかどうか
     """
-    if record.status == "failed":
-        return True
-    if record.status == "processing":
-        age = datetime.utcnow() - record.created_at
-        return age > _STALE_PROCESSING_TIMEOUT
-    return False
+    return _refresh_status(record, session) == "failed"
 
 
 def _duplicate_response(record: UploadRecord) -> dict:
@@ -189,7 +220,7 @@ async def upload_audio(
             UploadRecord.content_sha256 == content_sha256,
         )
     ).first()
-    if existing_record is not None and not _is_retryable(existing_record):
+    if existing_record is not None and not _is_retryable(existing_record, session):
         return _duplicate_response(existing_record)
 
     UPLOADED_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
@@ -199,8 +230,10 @@ async def upload_audio(
         f.write(content)
 
     if existing_record is not None:
-        # 再試行: 新しい記録を作らず，既存の記録を"processing"に戻して使い回す
+        # 再試行: 新しい記録を作らず，既存の記録を"processing"に戻して使い回す．
+        # processing_started_atもこの時刻に更新する(停滞判定の基準点をリセットするため)．
         existing_record.status = "processing"
+        existing_record.processing_started_at = datetime.utcnow()
         existing_record.conversation_id = None
         existing_record.client_file_id = client_file_id
         existing_record.recorded_started_at = recorded_at
@@ -212,6 +245,7 @@ async def upload_audio(
             client_file_id=client_file_id,
             content_sha256=content_sha256,
             status="processing",
+            processing_started_at=datetime.utcnow(),
             recorded_started_at=recorded_at,
         )
         session.add(upload_record)
@@ -272,5 +306,9 @@ def get_upload_status(
     record = session.get(UploadRecord, upload_record_id)
     if record is None or record.user_id != current_user.user_id:
         raise HTTPException(status_code=404, detail="指定されたアップロード記録が見つかりません")
+
+    # 停滞した"processing"をこのタイミングで"failed"へ更新する(クライアントが
+    # ポーリングを続けるだけで再送のきっかけを得られない，という事態を防ぐ)
+    _refresh_status(record, session)
 
     return _build_upload_status(record)

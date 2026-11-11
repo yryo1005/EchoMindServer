@@ -117,6 +117,12 @@ Cloudflare Tunnel(`cloudflared`)は転送先(`localhost:8000`)に何か起動し
 
 実行したアカウントは`admin`ロールになる．
 
+`UploadRecord`の停滞検知(終了フラグ機能)に用いる`processing_started_at`列の追加前に作成された`upload_records`テーブルがある場合は，以下を1回実行する(新規に構築した環境では不要):
+
+```bash
+../../.venv_ml/bin/python scripts/migrate_add_processing_started_at.py
+```
+
 ## テスト
 
 ```bash

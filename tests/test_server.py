@@ -119,13 +119,23 @@ def test_guess_extension_falls_back_to_m4a_when_missing() -> None:
     assert _guess_extension("recording_without_extension") == ".m4a"
 
 
+class _FakeSession:
+    """`_refresh_status`がcommitを呼べるようにするための，DBに接続しない疑似セッション．"""
+
+    def __init__(self) -> None:
+        self.committed = False
+
+    def commit(self) -> None:
+        self.committed = True
+
+
 def test_is_retryable_allows_failed_records() -> None:
     """"failed"状態の記録が再試行可能と判定されることを確認するテスト．"""
     from datetime import datetime
     from types import SimpleNamespace
 
-    record = SimpleNamespace(status="failed", created_at=datetime.utcnow())
-    assert _is_retryable(record) is True
+    record = SimpleNamespace(status="failed", processing_started_at=datetime.utcnow())
+    assert _is_retryable(record, _FakeSession()) is True
 
 
 def test_is_retryable_blocks_completed_and_rejected_records() -> None:
@@ -133,8 +143,9 @@ def test_is_retryable_blocks_completed_and_rejected_records() -> None:
     from datetime import datetime
     from types import SimpleNamespace
 
-    assert _is_retryable(SimpleNamespace(status="completed", created_at=datetime.utcnow())) is False
-    assert _is_retryable(SimpleNamespace(status="rejected", created_at=datetime.utcnow())) is False
+    session = _FakeSession()
+    assert _is_retryable(SimpleNamespace(status="completed", processing_started_at=datetime.utcnow()), session) is False
+    assert _is_retryable(SimpleNamespace(status="rejected", processing_started_at=datetime.utcnow()), session) is False
 
 
 def test_is_retryable_blocks_recent_processing_records() -> None:
@@ -142,17 +153,44 @@ def test_is_retryable_blocks_recent_processing_records() -> None:
     from datetime import datetime
     from types import SimpleNamespace
 
-    record = SimpleNamespace(status="processing", created_at=datetime.utcnow())
-    assert _is_retryable(record) is False
+    record = SimpleNamespace(status="processing", processing_started_at=datetime.utcnow())
+    session = _FakeSession()
+    assert _is_retryable(record, session) is False
+    assert record.status == "processing"  # 停滞していないため変更されない
+    assert session.committed is False
 
 
 def test_is_retryable_allows_stale_processing_records() -> None:
-    """タイムアウトを超えて"processing"のまま残っている記録は再試行可能と判定されることを確認するテスト．"""
+    """タイムアウトを超えて"processing"のまま残っている記録は，"failed"へ更新の上，再試行可能と判定されることを確認するテスト．"""
     from datetime import datetime, timedelta
     from types import SimpleNamespace
 
-    record = SimpleNamespace(status="processing", created_at=datetime.utcnow() - timedelta(hours=1))
-    assert _is_retryable(record) is True
+    record = SimpleNamespace(status="processing", processing_started_at=datetime.utcnow() - timedelta(hours=1))
+    session = _FakeSession()
+    assert _is_retryable(record, session) is True
+    assert record.status == "failed"  # 停滞を検出してfailedへ更新される
+    assert session.committed is True
+
+
+def test_refresh_status_ignores_retry_in_progress() -> None:
+    """再試行によりprocessing_started_atが更新されていれば，created_atが古くても停滞と判定しないことを確認するテスト．
+
+    (レビューで指摘された，再試行中の記録が別の並行アップロードから誤って
+    「停滞している」と判定され二重処理される問題の回帰テスト)
+    """
+    from datetime import datetime, timedelta
+    from types import SimpleNamespace
+
+    from app.api.upload import _refresh_status
+
+    record = SimpleNamespace(
+        status="processing",
+        created_at=datetime.utcnow() - timedelta(hours=2),  # 最初のアップロードは2時間前
+        processing_started_at=datetime.utcnow(),  # しかし直近で再試行を開始している
+    )
+    session = _FakeSession()
+    assert _refresh_status(record, session) == "processing"
+    assert session.committed is False
 
 
 def test_parse_client_datetime_normalizes_to_naive_utc() -> None:
