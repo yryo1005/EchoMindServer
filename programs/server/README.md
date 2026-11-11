@@ -1,7 +1,17 @@
 # EchoMind Server
 
 ライフログ音声解析・QAシステムのサーバー本体．設計の詳細は[document.md](../../document.md)，
-モデル選定・精度検証・各機能追加の経緯は`.reports/report_001.md`〜`report_006.md`を参照．
+モデル選定・精度検証・各機能追加の経緯は`.reports/report_001.md`〜`report_007.md`を参照．
+
+## クライアント(iPhoneアプリ等)のアップロード〜削除フロー
+
+1. `POST /api/upload`で録音ファイルをアップロードする(`recorded_started_at`は必須)．レスポンスの`upload_record_id`を保持する．
+2. `GET /api/upload/{upload_record_id}/status`を一定間隔(例: 5〜10秒おき)でポーリングする．
+3. レスポンスの`safe_to_delete_client_copy`が`true`になった時点で，端末上の録音ファイルを削除してよい．
+   - `status: "completed"`: 会話として正常に保存された．
+   - `status: "rejected"`: 発話が検出されなかった，または話者が1名のみだった(再送しても結果は変わらない)．
+   - `status: "failed"`: 処理中にエラーが発生した．このフラグは`false`のままなので，ファイルは削除せず，しばらくしてから同じファイルを再アップロードすること(サーバー側で同一内容と判定され，自動的に再試行される)．
+   - `status: "processing"`: まだ処理中．引き続きポーリングする．
 
 ## 前提
 

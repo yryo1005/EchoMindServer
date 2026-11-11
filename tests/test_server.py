@@ -11,7 +11,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "programs" / "server"))
 
 from app.api.browse import ConversationSummaryOut, UpdatePersonNameIn  # noqa: E402
-from app.api.upload import _guess_extension, _is_retryable, _parse_recorded_started_at  # noqa: E402
+from app.api.upload import (  # noqa: E402
+    _build_upload_status,
+    _guess_extension,
+    _is_retryable,
+    _parse_recorded_started_at,
+)
 from app.auth import create_access_token, hash_password, verify_password  # noqa: E402
 from app.pipeline.person_identification import _cosine_similarity  # noqa: E402
 from app.services.gemini_client import _is_daily_quota_exceeded  # noqa: E402
@@ -176,6 +181,49 @@ def test_to_jst_converts_utc_to_jst() -> None:
     jst = to_jst(naive_utc)
     assert jst.hour == 17
     assert jst.minute == 30
+
+
+def test_build_upload_status_completed_is_safe_to_delete() -> None:
+    """"completed"状態は終了かつ削除可能と判定されることを確認するテスト．"""
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(
+        upload_record_id="r1", status="completed", conversation_id="c1"
+    )
+    result = _build_upload_status(record)
+    assert result.is_finished is True
+    assert result.safe_to_delete_client_copy is True
+    assert result.conversation_id == "c1"
+
+
+def test_build_upload_status_rejected_is_safe_to_delete() -> None:
+    """"rejected"状態は終了かつ削除可能と判定されることを確認するテスト．"""
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(upload_record_id="r1", status="rejected", conversation_id=None)
+    result = _build_upload_status(record)
+    assert result.is_finished is True
+    assert result.safe_to_delete_client_copy is True
+
+
+def test_build_upload_status_failed_is_not_safe_to_delete() -> None:
+    """"failed"状態は終了だが削除不可(再試行用にファイルを残す)と判定されることを確認するテスト．"""
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(upload_record_id="r1", status="failed", conversation_id=None)
+    result = _build_upload_status(record)
+    assert result.is_finished is True
+    assert result.safe_to_delete_client_copy is False
+
+
+def test_build_upload_status_processing_is_not_finished() -> None:
+    """"processing"状態は未終了かつ削除不可と判定されることを確認するテスト．"""
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(upload_record_id="r1", status="processing", conversation_id=None)
+    result = _build_upload_status(record)
+    assert result.is_finished is False
+    assert result.safe_to_delete_client_copy is False
 
 
 def test_create_access_token_contains_user_id() -> None:

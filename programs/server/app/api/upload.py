@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -35,6 +36,45 @@ _DEFAULT_EXTENSION = ".m4a"  # クライアントはAACで送信する想定の�
 # "processing"のまま，この時間を超えて更新されていない記録は，サーバー再起動等で処理が
 # 中断されたまま失敗記録(failed)に更新されずに残っている可能性があるとみなし，再試行を許可する
 _STALE_PROCESSING_TIMEOUT = timedelta(minutes=30)
+
+# 処理がこれ以上進まない(最終的な)状態．クライアントはこれらの状態になるまでポーリングする．
+_TERMINAL_STATUSES = {"completed", "rejected", "failed"}
+
+# サーバー側での処理が完全に終わっており，かつ再試行の予定がないため，クライアントが
+# 端末上の音声ファイルを安全に削除してよい状態．
+# "failed"は再試行の対象(`_is_retryable`)であり，再送のためファイルを残す必要があるため含めない．
+_SAFE_TO_DELETE_STATUSES = {"completed", "rejected"}
+
+
+class UploadStatusOut(BaseModel):
+    """アップロードの処理状況のレスポンスモデル．
+
+    クライアントはアップロード後にこのエンドポイントをポーリングし，
+    `safe_to_delete_client_copy`が`true`になった時点で端末上の音声ファイルを削除する．
+    """
+
+    upload_record_id: str
+    status: str
+    is_finished: bool
+    safe_to_delete_client_copy: bool
+    conversation_id: str | None
+
+
+def _build_upload_status(record: UploadRecord) -> UploadStatusOut:
+    """アップロード記録から，クライアントに返す処理状況レスポンスを構築する関数．
+
+    引数:
+        record (UploadRecord): 対象のアップロード記録
+    戻り値:
+        upload_status (UploadStatusOut): 処理状況レスポンス
+    """
+    return UploadStatusOut(
+        upload_record_id=record.upload_record_id,
+        status=record.status,
+        is_finished=record.status in _TERMINAL_STATUSES,
+        safe_to_delete_client_copy=record.status in _SAFE_TO_DELETE_STATUSES,
+        conversation_id=record.conversation_id,
+    )
 
 
 def _parse_recorded_started_at(value: str) -> datetime:
@@ -103,6 +143,7 @@ def _duplicate_response(record: UploadRecord) -> dict:
         "upload_record_id": record.upload_record_id,
         "processing_status": record.status,
         "conversation_id": record.conversation_id,
+        "safe_to_delete_client_copy": record.status in _SAFE_TO_DELETE_STATUSES,
     }
 
 
@@ -199,3 +240,37 @@ async def upload_audio(
     )
 
     return {"status": "accepted", "upload_record_id": upload_record.upload_record_id}
+
+
+@router.get("/api/upload/{upload_record_id}/status", response_model=UploadStatusOut)
+def get_upload_status(
+    upload_record_id: str,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> UploadStatusOut:
+    """アップロードした音声の処理状況(終了フラグ)を取得するエンドポイント．
+
+    サーバー側の処理はバックグラウンドで非同期に実行されるため，`POST /api/upload`の
+    応答だけでは処理の完了を知ることができない．クライアントは`POST /api/upload`が
+    返した`upload_record_id`を使ってこのエンドポイントを定期的にポーリングし，
+    `safe_to_delete_client_copy`が`true`になった時点で端末上の音声ファイルを削除すること．
+
+    - `status == "completed"`: 処理が正常に完了した(会話として保存された)．削除してよい．
+    - `status == "rejected"`: 発話が検出されなかった，または話者が1名のみで「会話」として
+      扱われなかった．再送しても結果は変わらないため削除してよい．
+    - `status == "failed"`: 処理中にエラーが発生した．サーバー側で再試行可能な状態になって
+      いるため，クライアントはファイルを削除せず，しばらくしてから同じファイルを再送すること．
+    - `status == "processing"`: まだ処理中．しばらく待ってから再度確認すること．
+
+    引数:
+        upload_record_id (str): `POST /api/upload`のレスポンスで返されたアップロード記録ID
+        session (Session): DBセッション(依存性注入)
+        current_user (User): 認証されたユーザー(依存性注入)
+    戻り値:
+        upload_status (UploadStatusOut): 処理状況
+    """
+    record = session.get(UploadRecord, upload_record_id)
+    if record is None or record.user_id != current_user.user_id:
+        raise HTTPException(status_code=404, detail="指定されたアップロード記録が見つかりません")
+
+    return _build_upload_status(record)

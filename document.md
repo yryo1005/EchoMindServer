@@ -24,7 +24,7 @@
   - `app/config.py`: モデル選定(ベンチマーク結果に基づく)やDB接続先等の設定値．
   - `app/api/auth.py`: `POST /api/auth/register`(アカウント登録)，`POST /api/auth/login`(ログイン)，`GET /api/auth/me`(現在のユーザー情報)．
   - `app/auth.py`: パスワードハッシュ化(bcrypt)，JWTアクセストークンの発行・検証，`get_current_user`依存関数．
-  - `app/api/upload.py`: `POST /api/upload`(音声アップロード，認証必須)．録音開始時刻はクライアントが報告する`recorded_started_at`(ISO8601)を用い，サーバーの受信時刻は使用しない．アップロード音声のSHA256ハッシュによる重複アップロード防止(`UploadRecord`)を行う．処理が例外で失敗した場合や，サーバー異常終了等で"processing"のまま長時間更新されない場合は再試行を許可する．
+  - `app/api/upload.py`: `POST /api/upload`(音声アップロード，認証必須)．録音開始時刻はクライアントが報告する`recorded_started_at`(ISO8601)を用い，サーバーの受信時刻は使用しない．アップロード音声のSHA256ハッシュによる重複アップロード防止(`UploadRecord`)を行う．処理が例外で失敗した場合や，サーバー異常終了等で"processing"のまま長時間更新されない場合は再試行を許可する．`GET /api/upload/{upload_record_id}/status`で処理状況(終了フラグ`safe_to_delete_client_copy`を含む)をポーリングできる．クライアントはこのフラグが`true`になった時点で端末上の音声ファイルを削除する．
   - `app/timeutil.py`: 日時のタイムゾーン変換ユーティリティ．DBのdatetime列はタイムゾーン情報を持たない(naive)が「常にUTC」として扱う規約を集約し，クライアント入力の解析・APIレスポンスでのUTC明示・日本時間(JST)表示への変換を提供する．
   - `app/api/chat.py`: `POST /api/chat`(QA，認証必須．自分のアカウントのデータのみ検索対象とする)．Gemini APIへ渡す会話記録のタイムスタンプは日本時間(JST)に変換し，現在の日本時間も明示する(UTCのまま渡すと「何時から？」等の回答が9時間ずれるため)．
   - `app/api/browse.py`: `GET /api/persons`，`PUT /api/persons/{id}/name`(名前の手動設定)，`GET /api/conversations`，`GET /api/conversations/{id}`(ブラウザフロントエンド用の会話・発言閲覧API．いずれも認証必須)．
@@ -215,7 +215,7 @@ docker exec <postgresコンテナ名> psql -U echomind -d echomind -c "CREATE DA
 
 - 評価結果の数値: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/{手法名}/metrics.json`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/metrics.json`
 - 比較グラフ: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/comparison.png`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/comparison.png`
-- レポート: `.reports/report_001.md`(モデル選定・初回)，`report_002.md`(モデル選定・拡充版)，`report_003.md`(サーバー実装)，`report_004.md`(パイプライン精度検証)，`report_005.md`(ブラウザフロントエンド・アカウント機能)，`report_006.md`(録音タイムスタンプ・軽量音声形式・重複防止・Cloudflare公開)，`report_007.md`(失敗時の永久ブロック・競合・タイムゾーンの修正，最新)
+- レポート: `.reports/report_001.md`(モデル選定・初回)，`report_002.md`(モデル選定・拡充版)，`report_003.md`(サーバー実装)，`report_004.md`(パイプライン精度検証)，`report_005.md`(ブラウザフロントエンド・アカウント機能)，`report_006.md`(録音タイムスタンプ・軽量音声形式・重複防止・Cloudflare公開)，`report_007.md`(失敗時の永久ブロック・競合・タイムゾーンの修正)，`report_008.md`(終了フラグ/処理状況ポーリング機能，最新)
 
 ## 必要なAPIキー・設定ファイル
 
