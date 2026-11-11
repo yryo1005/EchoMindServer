@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.config import EMBEDDING_DIM
@@ -79,6 +79,31 @@ class Conversation(Base):
     utterances: Mapped[list["Utterance"]] = relationship(
         back_populates="conversation", order_by="Utterance.start_time"
     )
+
+
+class UploadRecord(Base):
+    """アップロードされた音声ファイルの処理記録を表すテーブル．
+
+    クライアントからの応答が失われて同じ音声が再送された場合に，二重に処理しないための
+    冪等性チェックに用いる．同一アカウント内で音声データのSHA256ハッシュが重複する
+    アップロードは，新たな処理を行わず過去の処理結果を返す．
+    """
+
+    __tablename__ = "upload_records"
+    __table_args__ = (UniqueConstraint("user_id", "content_sha256", name="uq_upload_user_content_hash"),)
+
+    upload_record_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"))
+    client_file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="processing")  # processing/completed/rejected
+    conversation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("conversations.conversation_id"), nullable=True
+    )
+    recorded_started_at: Mapped[datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Utterance(Base):

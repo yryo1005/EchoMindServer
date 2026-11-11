@@ -2,6 +2,8 @@
 
 ライフログ音声解析・QAシステムのサーバー実装(`仕様書.md`参照)．
 
+サーバーの起動方法・Cloudflare Tunnelでの公開方法は[programs/server/README.md](programs/server/README.md)にまとめている．本ファイルはプロジェクト全体の構成・依存関係・実験の経緯を記録する．
+
 ## ディレクトリ構成
 
 - `programs/ex001_model_benchmark/`: モデル選定のための最初のベンチマーク(疑似会話30件，無音のみ)．
@@ -22,14 +24,15 @@
   - `app/config.py`: モデル選定(ベンチマーク結果に基づく)やDB接続先等の設定値．
   - `app/api/auth.py`: `POST /api/auth/register`(アカウント登録)，`POST /api/auth/login`(ログイン)，`GET /api/auth/me`(現在のユーザー情報)．
   - `app/auth.py`: パスワードハッシュ化(bcrypt)，JWTアクセストークンの発行・検証，`get_current_user`依存関数．
-  - `app/api/upload.py`: `POST /api/upload`(音声アップロード，認証必須)．
+  - `app/api/upload.py`: `POST /api/upload`(音声アップロード，認証必須)．録音開始時刻はクライアントが報告する`recorded_started_at`(ISO8601)を用い，サーバーの受信時刻は使用しない．アップロード音声のSHA256ハッシュによる重複アップロード防止(`UploadRecord`)を行う．
   - `app/api/chat.py`: `POST /api/chat`(QA，認証必須．自分のアカウントのデータのみ検索対象とする)．
   - `app/api/browse.py`: `GET /api/persons`，`PUT /api/persons/{id}/name`(名前の手動設定)，`GET /api/conversations`，`GET /api/conversations/{id}`(ブラウザフロントエンド用の会話・発言閲覧API．いずれも認証必須)．
   - `app/api/audio.py`: `GET /api/audio/{utterance_id}`(発言の音声クリップ配信，認証必須．自分のアカウントの発言以外は404)．
-  - `app/pipeline/`: VAD・話者分離・音声単位の切り出し・ASR・文章校正・ベクトル化・話者ID統合/名前推定・パイプライン全体の統括(`orchestrator.py`)．話者ID統合(`resolve_person`)はアカウント(user_id)内でのみ照合する．
+  - `app/pipeline/`: VAD・話者分離・音声単位の切り出し・ASR・文章校正・ベクトル化・話者ID統合/名前推定・パイプライン全体の統括(`orchestrator.py`)．話者ID統合(`resolve_person`)はアカウント(user_id)内でのみ照合する．発話クリップはAAC(.m4a)で保存し(`segment.py`)，ASR(`asr.py`)はAAC非対応のlibsndfile制約を避けるため切り出し前の波形を直接受け取る．
   - `app/db/`: SQLAlchemyモデル(`models.py`: User, Person, Conversation, Utterance)とセッション管理(`session.py`)．
   - `app/services/gemini_client.py`: Gemini APIクライアントのラッパー．1分あたりのレート制限・一時的なサーバーエラーは同一モデルで指数バックオフリトライし，1日あたりのリクエスト数上限に達した場合は候補モデル(`_MODEL_CANDIDATES`)へ自動的に切り替える．
-  - `docker-compose.yml`: PostgreSQL+pgvectorのコンテナ定義．
+  - `docker-compose.yml`: PostgreSQL+pgvectorおよびCloudflare Tunnel(`cloudflared`)のコンテナ定義．
+  - `.env.example`: Cloudflare Tunnelのトークン(`CLOUDFLARE_TUNNEL_TOKEN`)を設定するための環境変数ファイルのテンプレート．実際の`.env`はGit管理対象外．
   - `scripts/assign_existing_data_to_user.py`: アカウント機能追加前に作成された既存データ(user_id未設定のConversation/Person)を，指定したメールアドレスのアカウントに帰属づけ，そのアカウントをadminロールにする一度限りの移行スクリプト．
   - `static/`: ブラウザ用フロントエンド(ビルドツールを使わないプレーンなHTML/JS/CSS．`app.main`がルートパスに静的配信する)．ログイン・アカウント登録画面，質問タブ，会話閲覧タブ，話者の名前設定タブを持つ．`index.html`，`app.js`，`style.css`．アクセストークンはブラウザの`localStorage`に保存する．
   - `storage/`: アップロードされた音声・発話クリップの保存先(Git管理対象外)．
@@ -167,7 +170,10 @@ curl -X POST http://localhost:8000/api/auth/register -H "Content-Type: applicati
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" \
   -d '{"email": "you@example.com", "password": "your-password"}' | python3 -c "import json,sys;print(json.load(sys.stdin)['access_token'])")
 
-curl -X POST http://localhost:8000/api/upload -H "Authorization: Bearer $TOKEN" -F "file=@/path/to/audio.wav"
+curl -X POST http://localhost:8000/api/upload -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/recording.m4a" \
+  -F "recorded_started_at=2026-11-11T09:00:00Z" \
+  -F "client_file_id=任意のクライアント発行ID(省略可)"
 curl -X POST http://localhost:8000/api/chat -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"query": "明日のMTGは何時から？"}'
 ```
@@ -208,7 +214,7 @@ docker exec <postgresコンテナ名> psql -U echomind -d echomind -c "CREATE DA
 
 - 評価結果の数値: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/{手法名}/metrics.json`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/metrics.json`
 - 比較グラフ: `outputs/{ex001,ex002}_model_benchmark/{vad,diarization,asr,embedding}/comparison.png`，`outputs/ex003_server_evaluation/{speaker_id,name_estimation}/comparison.png`
-- レポート: `.reports/report_001.md`(モデル選定・初回)，`report_002.md`(モデル選定・拡充版)，`report_003.md`(サーバー実装)，`report_004.md`(パイプライン精度検証)，`report_005.md`(ブラウザフロントエンド・アカウント機能，最新)
+- レポート: `.reports/report_001.md`(モデル選定・初回)，`report_002.md`(モデル選定・拡充版)，`report_003.md`(サーバー実装)，`report_004.md`(パイプライン精度検証)，`report_005.md`(ブラウザフロントエンド・アカウント機能)，`report_006.md`(録音タイムスタンプ・軽量音声形式・重複防止・Cloudflare公開，最新)
 
 ## 必要なAPIキー・設定ファイル
 

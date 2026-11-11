@@ -31,7 +31,7 @@ def get_audio(
         session (Session): DBセッション(依存性注入)
         current_user (User): 認証されたユーザー(依存性注入)
     戻り値:
-        response (FileResponse): wav形式の音声ファイル
+        response (FileResponse): 音声ファイル(AAC/.m4a形式で保存されている)
     """
     utterance = session.get(Utterance, utterance_id)
     if utterance is None or utterance.conversation.user_id != current_user.user_id:
@@ -41,4 +41,5 @@ def get_audio(
     if not audio_path.is_file():
         raise HTTPException(status_code=404, detail="音声ファイルが見つかりません")
 
-    return FileResponse(audio_path, media_type="audio/wav")
+    media_type = "audio/mp4" if audio_path.suffix == ".m4a" else "audio/wav"
+    return FileResponse(audio_path, media_type=media_type)

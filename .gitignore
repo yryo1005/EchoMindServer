@@ -21,4 +21,5 @@ outputs/
 third_party/
 # EchoMind Server (アップロード音声・発話クリップ等のランタイムストレージ)
 programs/server/storage/
+programs/server/.env
 

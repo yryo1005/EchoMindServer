@@ -11,6 +11,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "programs" / "server"))
 
 from app.api.browse import ConversationSummaryOut, UpdatePersonNameIn  # noqa: E402
+from app.api.upload import _guess_extension, _parse_recorded_started_at  # noqa: E402
 from app.auth import create_access_token, hash_password, verify_password  # noqa: E402
 from app.pipeline.person_identification import _cosine_similarity  # noqa: E402
 from app.services.gemini_client import _is_daily_quota_exceeded  # noqa: E402
@@ -78,6 +79,38 @@ def test_hash_password_and_verify_password_roundtrip() -> None:
     password_hash = hash_password("correct-password")
     assert verify_password("correct-password", password_hash) is True
     assert verify_password("wrong-password", password_hash) is False
+
+
+def test_parse_recorded_started_at_accepts_utc_z_suffix() -> None:
+    """ISO8601(末尾Z)形式の録音開始時刻を解析できることを確認するテスト．"""
+    parsed = _parse_recorded_started_at("2026-03-01T08:30:00Z")
+    assert parsed.year == 2026
+    assert parsed.month == 3
+    assert parsed.day == 1
+    assert parsed.hour == 8
+
+
+def test_parse_recorded_started_at_rejects_invalid_format() -> None:
+    """不正な形式の録音開始時刻がHTTPExceptionとして拒否されることを確認するテスト．"""
+    from fastapi import HTTPException
+
+    try:
+        _parse_recorded_started_at("not-a-valid-timestamp")
+        assert False, "例外が発生するはずです"
+    except HTTPException as error:
+        assert error.status_code == 400
+
+
+def test_guess_extension_uses_filename_suffix() -> None:
+    """アップロードファイル名から拡張子を正しく推定できることを確認するテスト．"""
+    assert _guess_extension("recording.aac") == ".aac"
+    assert _guess_extension("recording.m4a") == ".m4a"
+
+
+def test_guess_extension_falls_back_to_m4a_when_missing() -> None:
+    """拡張子が不明な場合，デフォルトの.m4aが使われることを確認するテスト．"""
+    assert _guess_extension(None) == ".m4a"
+    assert _guess_extension("recording_without_extension") == ".m4a"
 
 
 def test_create_access_token_contains_user_id() -> None:

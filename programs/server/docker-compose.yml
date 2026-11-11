@@ -15,5 +15,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # Cloudflare Tunnel: 自宅サーバー(localhost:8000で動くuvicorn)を
+  # 既存ドメイン(stargazyguys.com)のサブドメインから安全に公開する．
+  # CLOUDFLARE_TUNNEL_TOKENは.env(Git管理対象外)で指定する．
+  # セットアップ手順は .reports/report_006.md を参照．
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    network_mode: host
+
 volumes:
   pgdata:

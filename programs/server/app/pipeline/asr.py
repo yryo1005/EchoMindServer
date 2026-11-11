@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import numpy as np
 
 from app.config import ASR_MODEL_ID
 
@@ -29,11 +29,15 @@ def _get_model():
     return _model
 
 
-def transcribe(wav_path: Path, domain_terms: dict[str, list[str]] | None = None) -> str:
-    """音声ファイルを文字起こしする関数．
+def transcribe(audio: np.ndarray, domain_terms: dict[str, list[str]] | None = None) -> str:
+    """音声波形を文字起こしする関数．
+
+    発話区間の切り出し結果は保存容量を抑えるためAAC(.m4a)で保存しているが，
+    AAC形式はlibsndfile(ASRモデルが内部で使用)では読み込めないため，ファイルを
+    経由せず，元の音声からデコード済みの波形を直接受け取る．
 
     引数:
-        wav_path (Path): 対象音声ファイルのパス
+        audio (np.ndarray): shape=(n_samples,)の16kHzモノラル音声波形(float32, -1.0〜1.0)
         domain_terms (dict[str, list[str]] | None) = None: 専門用語の辞書．
             キーが表記，値が読み(かな)のリスト(例: {"EchoMind": ["エコーマインド"]})
     戻り値:
@@ -42,7 +46,7 @@ def transcribe(wav_path: Path, domain_terms: dict[str, list[str]] | None = None)
     import haas_asr
 
     model = _get_model()
-    audio = haas_asr.load_audio(str(wav_path))
+    audio = np.ascontiguousarray(audio, dtype=np.float32)
 
     if domain_terms:
         vocabulary = haas_asr.Vocabulary(domain_terms)
