@@ -11,10 +11,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "programs" / "server"))
 
 from app.api.browse import ConversationSummaryOut, UpdatePersonNameIn  # noqa: E402
-from app.api.upload import _guess_extension, _parse_recorded_started_at  # noqa: E402
+from app.api.upload import _guess_extension, _is_retryable, _parse_recorded_started_at  # noqa: E402
 from app.auth import create_access_token, hash_password, verify_password  # noqa: E402
 from app.pipeline.person_identification import _cosine_similarity  # noqa: E402
 from app.services.gemini_client import _is_daily_quota_exceeded  # noqa: E402
+from app.timeutil import as_utc_aware, parse_client_datetime, to_jst  # noqa: E402
 
 
 def test_cosine_similarity_identical_vectors() -> None:
@@ -111,6 +112,70 @@ def test_guess_extension_falls_back_to_m4a_when_missing() -> None:
     """拡張子が不明な場合，デフォルトの.m4aが使われることを確認するテスト．"""
     assert _guess_extension(None) == ".m4a"
     assert _guess_extension("recording_without_extension") == ".m4a"
+
+
+def test_is_retryable_allows_failed_records() -> None:
+    """"failed"状態の記録が再試行可能と判定されることを確認するテスト．"""
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(status="failed", created_at=datetime.utcnow())
+    assert _is_retryable(record) is True
+
+
+def test_is_retryable_blocks_completed_and_rejected_records() -> None:
+    """"completed"・"rejected"状態の記録は再試行対象にならないことを確認するテスト．"""
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    assert _is_retryable(SimpleNamespace(status="completed", created_at=datetime.utcnow())) is False
+    assert _is_retryable(SimpleNamespace(status="rejected", created_at=datetime.utcnow())) is False
+
+
+def test_is_retryable_blocks_recent_processing_records() -> None:
+    """直近の"processing"状態の記録は(処理中の可能性があるため)再試行対象にならないことを確認するテスト．"""
+    from datetime import datetime
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(status="processing", created_at=datetime.utcnow())
+    assert _is_retryable(record) is False
+
+
+def test_is_retryable_allows_stale_processing_records() -> None:
+    """タイムアウトを超えて"processing"のまま残っている記録は再試行可能と判定されることを確認するテスト．"""
+    from datetime import datetime, timedelta
+    from types import SimpleNamespace
+
+    record = SimpleNamespace(status="processing", created_at=datetime.utcnow() - timedelta(hours=1))
+    assert _is_retryable(record) is True
+
+
+def test_parse_client_datetime_normalizes_to_naive_utc() -> None:
+    """タイムゾーン付きの日時文字列が，タイムゾーン情報を持たないUTCに正規化されることを確認するテスト．"""
+    parsed = parse_client_datetime("2026-03-01T17:30:00+09:00")
+    assert parsed.tzinfo is None
+    assert parsed.hour == 8  # 17:30 JST(+09:00) = 08:30 UTC
+    assert parsed.minute == 30
+
+
+def test_as_utc_aware_attaches_utc_timezone() -> None:
+    """naiveなdatetimeにUTCのtzinfoが付与されることを確認するテスト．"""
+    from datetime import datetime, timezone
+
+    naive = datetime(2026, 3, 1, 8, 30, 0)
+    aware = as_utc_aware(naive)
+    assert aware.tzinfo == timezone.utc
+    assert aware.isoformat() == "2026-03-01T08:30:00+00:00"
+
+
+def test_to_jst_converts_utc_to_jst() -> None:
+    """UTCの時刻が日本時間(UTC+9)に正しく変換されることを確認するテスト．"""
+    from datetime import datetime
+
+    naive_utc = datetime(2026, 3, 1, 8, 30, 0)
+    jst = to_jst(naive_utc)
+    assert jst.hour == 17
+    assert jst.minute == 30
 
 
 def test_create_access_token_contains_user_id() -> None:

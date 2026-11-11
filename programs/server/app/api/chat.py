@@ -15,6 +15,7 @@ from app.db.models import Conversation, User, Utterance
 from app.db.session import get_session
 from app.pipeline import embedding
 from app.services.gemini_client import generate_text
+from app.timeutil import as_utc_aware, now_jst, to_jst
 
 router = APIRouter()
 
@@ -86,6 +87,11 @@ def _expand_with_context(session: Session, utterances: list[Utterance]) -> list[
 def _build_answer_prompt(query: str, context_utterances: list[Utterance]) -> str:
     """回答生成用のプロンプトを構築する関数．
 
+    会話記録のタイムスタンプはDBにUTCで保存されているため，そのまま渡すと日本時間との
+    9時間のずれにより「何時から？」等の質問に誤った回答が生成される．日本時間(JST)に
+    変換した上で渡し，また「明日」「今日」等の相対的な日付表現を正しく解釈できるよう，
+    現在の日本時間も明示する．
+
     引数:
         query (str): ユーザーからの質問文
         context_utterances (list[Utterance]): 根拠として提示する発話のリスト
@@ -93,11 +99,15 @@ def _build_answer_prompt(query: str, context_utterances: list[Utterance]) -> str
         prompt (str): Gemini APIへ送信するプロンプト
     """
     context_lines = [
-        f"[{u.start_time:%Y-%m-%d %H:%M}] {u.person.name or u.person_id}: {u.text}" for u in context_utterances
+        f"[{to_jst(u.start_time):%Y-%m-%d %H:%M} JST] {u.person.name or u.person_id}: {u.text}"
+        for u in context_utterances
     ]
     context_text = "\n".join(context_lines)
+    current_time_text = f"{now_jst():%Y-%m-%d %H:%M} JST"
     return (
-        "以下は過去の会話記録の抜粋です．この会話記録のみに基づいて，質問に回答してください．"
+        f"現在の日時は{current_time_text}です．"
+        "以下は過去の会話記録の抜粋です(各発言のタイムスタンプは日本時間)．"
+        "この会話記録のみに基づいて，質問に回答してください．"
         "会話記録から回答できない場合は，その旨を述べてください．\n\n"
         f"【会話記録】\n{context_text}\n\n"
         f"【質問】\n{query}"
@@ -127,5 +137,5 @@ def chat(
     prompt = _build_answer_prompt(request.query, context_utterances)
     answer = generate_text(prompt).strip()
 
-    references = [u.start_time.isoformat() for u in top_utterances]
+    references = [as_utc_aware(u.start_time).isoformat() for u in top_utterances]
     return ChatResponse(answer=answer, references=references)

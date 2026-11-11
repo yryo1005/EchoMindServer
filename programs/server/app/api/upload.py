@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -25,10 +26,15 @@ from app.config import UPLOADED_AUDIO_DIR
 from app.db.models import UploadRecord, User
 from app.db.session import get_session
 from app.pipeline.orchestrator import process_uploaded_audio
+from app.timeutil import parse_client_datetime
 
 router = APIRouter()
 
 _DEFAULT_EXTENSION = ".m4a"  # クライアントはAACで送信する想定のため，拡張子不明時はこれを用いる
+
+# "processing"のまま，この時間を超えて更新されていない記録は，サーバー再起動等で処理が
+# 中断されたまま失敗記録(failed)に更新されずに残っている可能性があるとみなし，再試行を許可する
+_STALE_PROCESSING_TIMEOUT = timedelta(minutes=30)
 
 
 def _parse_recorded_started_at(value: str) -> datetime:
@@ -37,10 +43,10 @@ def _parse_recorded_started_at(value: str) -> datetime:
     引数:
         value (str): ISO8601形式の日時文字列(例: "2026-11-11T09:00:00Z")
     戻り値:
-        recorded_started_at (datetime): 解析された日時
+        recorded_started_at (datetime): 解析されたUTCのdatetime(タイムゾーン情報は持たない)
     """
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parse_client_datetime(value)
     except ValueError as error:
         raise HTTPException(
             status_code=400, detail="recorded_started_atはISO8601形式(例: 2026-11-11T09:00:00Z)で指定してください"
@@ -60,6 +66,44 @@ def _guess_extension(filename: str | None) -> str:
         if suffix:
             return suffix
     return _DEFAULT_EXTENSION
+
+
+def _is_retryable(record: UploadRecord) -> bool:
+    """既存のアップロード記録が再試行の対象となるかを判定する関数．
+
+    "failed"(処理中にエラーが発生し再試行すべき)，または"processing"のまま
+    `_STALE_PROCESSING_TIMEOUT`を超えて更新されていない(サーバー異常終了等で
+    処理が中断されたまま残っている可能性がある)場合に再試行を許可する．
+    "completed"(処理済み)・"rejected"(会話として扱われないと判定済み)は
+    再実行しても結果が変わらないため，再試行の対象としない．
+
+    引数:
+        record (UploadRecord): 既存のアップロード記録
+    戻り値:
+        is_retryable (bool): 再試行を許可するかどうか
+    """
+    if record.status == "failed":
+        return True
+    if record.status == "processing":
+        age = datetime.utcnow() - record.created_at
+        return age > _STALE_PROCESSING_TIMEOUT
+    return False
+
+
+def _duplicate_response(record: UploadRecord) -> dict:
+    """既存のアップロード記録から，重複アップロード時のレスポンスを構築する関数．
+
+    引数:
+        record (UploadRecord): 既存のアップロード記録
+    戻り値:
+        response (dict): クライアントに返すレスポンス
+    """
+    return {
+        "status": "duplicate",
+        "upload_record_id": record.upload_record_id,
+        "processing_status": record.status,
+        "conversation_id": record.conversation_id,
+    }
 
 
 @router.post("/api/upload")
@@ -88,7 +132,7 @@ async def upload_audio(
         current_user (User): 認証されたユーザー(依存性注入)．アップロードされた
             会話・人物はこのユーザーのアカウントに紐づけられる．
     戻り値:
-        response (dict): 受付状況を示すメッセージ．既に処理済みの音声の場合は
+        response (dict): 受付状況を示すメッセージ．既に処理済み(または処理中)の音声の場合は
             `status: "duplicate"`として過去の処理結果を返す．
     """
     recorded_at = _parse_recorded_started_at(recorded_started_at)
@@ -96,20 +140,16 @@ async def upload_audio(
     content = await file.read()
     content_sha256 = hashlib.sha256(content).hexdigest()
 
-    # 冪等性チェック: 同一アカウント内で同じ音声データが既に処理されている場合は再処理しない
+    # 冪等性チェック: 同一アカウント内で同じ音声データの処理記録が既にある場合は基本的に再処理しない．
+    # ただし，処理が失敗したまま，またはサーバー異常終了等で処理中のまま残っている記録は再試行を許可する．
     existing_record = session.scalars(
         select(UploadRecord).where(
             UploadRecord.user_id == current_user.user_id,
             UploadRecord.content_sha256 == content_sha256,
         )
     ).first()
-    if existing_record is not None:
-        return {
-            "status": "duplicate",
-            "upload_record_id": existing_record.upload_record_id,
-            "processing_status": existing_record.status,
-            "conversation_id": existing_record.conversation_id,
-        }
+    if existing_record is not None and not _is_retryable(existing_record):
+        return _duplicate_response(existing_record)
 
     UPLOADED_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     extension = _guess_extension(file.filename)
@@ -117,15 +157,38 @@ async def upload_audio(
     with open(audio_path, "wb") as f:
         f.write(content)
 
-    upload_record = UploadRecord(
-        user_id=current_user.user_id,
-        client_file_id=client_file_id,
-        content_sha256=content_sha256,
-        status="processing",
-        recorded_started_at=recorded_at,
-    )
-    session.add(upload_record)
-    session.commit()
+    if existing_record is not None:
+        # 再試行: 新しい記録を作らず，既存の記録を"processing"に戻して使い回す
+        existing_record.status = "processing"
+        existing_record.conversation_id = None
+        existing_record.client_file_id = client_file_id
+        existing_record.recorded_started_at = recorded_at
+        session.commit()
+        upload_record = existing_record
+    else:
+        upload_record = UploadRecord(
+            user_id=current_user.user_id,
+            client_file_id=client_file_id,
+            content_sha256=content_sha256,
+            status="processing",
+            recorded_started_at=recorded_at,
+        )
+        session.add(upload_record)
+        try:
+            session.commit()
+        except IntegrityError:
+            # 同じ音声データに対する並行アップロードが一意制約に同時に抵触した場合，
+            # 自分の挿入は諦めて，相手(先にコミットされた方)の記録を重複として返す
+            session.rollback()
+            concurrent_record = session.scalars(
+                select(UploadRecord).where(
+                    UploadRecord.user_id == current_user.user_id,
+                    UploadRecord.content_sha256 == content_sha256,
+                )
+            ).first()
+            if concurrent_record is not None:
+                return _duplicate_response(concurrent_record)
+            raise
 
     background_tasks.add_task(
         process_uploaded_audio,

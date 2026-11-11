@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable
@@ -17,6 +18,8 @@ from app.db.models import Conversation, UploadRecord, Utterance
 from app.db.session import SessionLocal
 from app.pipeline import asr, correction, diarization, embedding, segment, vad
 from app.pipeline.person_identification import maybe_estimate_name, resolve_person
+
+logger = logging.getLogger(__name__)
 
 # 専門用語辞書(初期プロンプト相当)．実際の運用では外部設定ファイル等から読み込む．
 DOMAIN_TERMS: dict[str, list[str]] = {}
@@ -33,7 +36,7 @@ def _mark_upload_record(
     引数:
         session_factory (Callable[[], Session]): DBセッションの生成関数
         upload_record_id (str | None): 更新対象のアップロード記録ID(Noneの場合は何もしない)
-        status (str): 更新後のステータス("completed"または"rejected")
+        status (str): 更新後のステータス("completed", "rejected", "failed"のいずれか)
         conversation_id (str | None) = None: 作成された会話のID(作成されなかった場合はNone)
     戻り値:
         なし
@@ -62,6 +65,11 @@ def process_uploaded_audio(
 ) -> None:
     """アップロードされた音声ファイルに対し，常時処理パイプラインを実行する関数．
 
+    処理中に例外が発生した場合(ASRやGemini APIのエラー，サーバーの異常終了等)，
+    アップロード記録(UploadRecord)を"failed"として記録する．これにより，クライアントが
+    同じ音声を再送した際に，`app/api/upload.py`の冪等性チェックが永久に"処理済み"として
+    扱ってしまい，その音声がどこにも処理されないまま失われる事態を防ぐ(再送時に再試行される)．
+
     引数:
         audio_path (Path): アップロードされた音声ファイルのパス
         recorded_at (datetime): クライアントが報告した録音開始時刻(発言の絶対タイムスタンプ算出に使用．
@@ -69,7 +77,7 @@ def process_uploaded_audio(
         user_id (str): アップロードを行ったアカウントのユーザーID．
             会話・人物をこのアカウントに紐づけ，他アカウントのデータと分離するために使用する．
         upload_record_id (str | None) = None: このアップロードの冪等性チェック記録のID．
-            処理結果(完了または棄却)をこの記録に反映するために使用する．
+            処理結果(完了・棄却・失敗)をこの記録に反映するために使用する．
         session_factory (Callable[[], Session]) = SessionLocal: DBセッションの生成関数．
             `programs/ex003_server_evaluation/`での精度検証時に，本番用DBと異なる
             評価用DBへ向けるために上書きできる．
@@ -79,6 +87,34 @@ def process_uploaded_audio(
         enable_name_estimation (bool) = True: 名前推定を行うかどうか．用途はenable_correctionと同様．
     戻り値:
         なし
+    """
+    try:
+        _process_uploaded_audio_inner(
+            audio_path,
+            recorded_at,
+            user_id,
+            upload_record_id,
+            session_factory,
+            enable_correction,
+            enable_name_estimation,
+        )
+    except Exception:
+        logger.exception("音声処理中に例外が発生しました: audio_path=%s", audio_path)
+        _mark_upload_record(session_factory, upload_record_id, status="failed")
+
+
+def _process_uploaded_audio_inner(
+    audio_path: Path,
+    recorded_at: datetime,
+    user_id: str,
+    upload_record_id: str | None,
+    session_factory: Callable[[], Session],
+    enable_correction: bool,
+    enable_name_estimation: bool,
+) -> None:
+    """`process_uploaded_audio`の実処理(例外ハンドリングを分離するための内部関数)．
+
+    引数・戻り値は`process_uploaded_audio`と同様．
     """
     audio, _ = librosa.load(str(audio_path), sr=SAMPLE_RATE, mono=True)
 

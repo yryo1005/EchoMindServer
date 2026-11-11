@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.db.models import Conversation, Person, User, Utterance
 from app.db.session import get_session
+from app.timeutil import as_utc_aware
 
 router = APIRouter()
 
@@ -77,8 +78,8 @@ def _utterance_to_out(utterance: Utterance) -> UtteranceOut:
         utterance_id=utterance.utterance_id,
         person_id=utterance.person_id,
         person_name=utterance.person.name,
-        start_time=utterance.start_time,
-        end_time=utterance.end_time,
+        start_time=as_utc_aware(utterance.start_time),
+        end_time=as_utc_aware(utterance.end_time),
         text=utterance.text,
         audio_url=f"/api/audio/{utterance.utterance_id}",
     )
@@ -180,8 +181,8 @@ def list_conversations(
         results.append(
             ConversationSummaryOut(
                 conversation_id=conversation.conversation_id,
-                started_at=conversation.started_at,
-                ended_at=conversation.ended_at,
+                started_at=as_utc_aware(conversation.started_at),
+                ended_at=as_utc_aware(conversation.ended_at),
                 participant_names=participant_names,
                 utterance_count=len(utterances),
             )
@@ -216,7 +217,7 @@ def get_conversation(
 
     return ConversationDetailOut(
         conversation_id=conversation.conversation_id,
-        started_at=conversation.started_at,
-        ended_at=conversation.ended_at,
+        started_at=as_utc_aware(conversation.started_at),
+        ended_at=as_utc_aware(conversation.ended_at),
         utterances=[_utterance_to_out(u) for u in utterances],
     )
